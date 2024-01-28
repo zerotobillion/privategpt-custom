@@ -164,6 +164,43 @@ class ChatMLPromptStyle(AbstractPromptStyle):
         return self._messages_to_prompt(
             [ChatMessage(content=completion, role=MessageRole.USER)]
         )
+    
+
+class QwenPromptStyle(AbstractPromptStyle):
+    """Tag prompt style (used by Vigogne) that uses the prompt style `<|ROLE|>`.
+
+    It transforms the sequence of messages into a prompt that should look like:
+    ```text
+    <|system|>: your system prompt here.
+    <|user|>: user message here
+    (possibly with context and question)
+    <|assistant|>: assistant (model) response here.
+    ```
+
+    FIXME: should we add surrounding `<s>` and `</s>` tags, like in llama2?
+    """
+
+    def _messages_to_prompt(self, messages: Sequence[ChatMessage]) -> str:
+        """Format message to prompt with `<|ROLE|>: MSG` style."""
+        prompt = ""
+        for message in messages:
+            role = message.role
+            content = message.content or ""
+            # role = 'Instruction' if role == 'user' else role
+            # message_from_user = '{' + f"{role.lower().capitalize()}" + '}' + f": {content.strip()}"
+            message_from_user = f"{role.upper()}: {content.strip()}"
+            message_from_user += "\n"
+            prompt += message_from_user
+        # we are missing the last <|assistant|> tag that will trigger a completion
+        # prompt += "Response: "
+        prompt += "ASSISTANT: "
+        print(prompt)
+        return prompt
+
+    def _completion_to_prompt(self, completion: str) -> str:
+        return self._messages_to_prompt(
+            [ChatMessage(content=completion, role=MessageRole.USER)]
+        )
 
 
 def get_prompt_style(
@@ -184,4 +221,6 @@ def get_prompt_style(
         return MistralPromptStyle()
     elif prompt_style == "chatml":
         return ChatMLPromptStyle()
+    elif prompt_style == 'qwen':
+        return QwenPromptStyle()
     raise ValueError(f"Unknown prompt_style='{prompt_style}'")
